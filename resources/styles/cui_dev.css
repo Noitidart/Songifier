@@ -1,0 +1,9 @@
+@-moz-document url("chrome://browser/content/browser.xul") {
+	#cui_songifier {
+		list-style-image: url('chrome://songifier/content/resources/images/white16.png');
+	}
+	#cui_songifier[cui-areatype="menu-panel"],
+	toolbarpaletteitem[place="palette"] > #cui_songifier {
+		list-style-image: url('chrome://songifier/content/resources/images/offgray32.png');
+	}
+}
