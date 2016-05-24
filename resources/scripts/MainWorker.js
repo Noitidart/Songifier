@@ -6,8 +6,14 @@ var core;
 var gBsComm;
 var gStore = []; // array of active things, id is held in gStore[i].abinst.aId
 
+
+
 function init(aArg, aComm) {
 	core = aArg;
+
+	// imports
+	importScripts(core.addon.path.scripts + 'hmac-sha1.js');
+	importScripts(core.addon.path.scripts + 'enc-base64-min.js');
 
 	// add stuff to core
 	core.os.name = OS.Constants.Sys.Name.toLowerCase();
@@ -89,13 +95,45 @@ function countdownRecord(aId) {
 function doneRecord(aArg, aComm) {
 	var { arrbuf } = aArg;
 
+	var arrbuf_copy = arrbuf.slice();
 	try {
-		OS.File.writeAtomic(OS.Path.join(OS.Constants.Path.desktopDir, Date.now() + '.ogg'), new Uint8Array(arrbuf));
+		OS.File.writeAtomic(OS.Path.join(OS.Constants.Path.desktopDir, Date.now() + '.ogg'), new Uint8Array(arrbuf_copy));
 	} catch(ex) {
 		console.error('failed to save, ex:', ex);
 		throw new Error('failed to save, ex: ' + ex);
 	}
 	console.log('succesfully saved');
+
+	 var blob = new Blob([new Uint8Array(arrbuf)], {type: 'audio/ogg'});
+
+	// keep this file saved, until succesfully identified
+	var method = 'POST';
+	var endpoint = '/v1/identify';
+	var uri = 'http://' + host + endpoint;
+	var timestamp = (new Date).getTime() / 1000;
+	var access_key = key;
+	var signature_version = '1';
+	var data_type = 'audio';
+
+	var signature = CryptoJS.HmacSHA1([method, endpoint, access_key, data_type, signature_version, timestamp].join('\n'), secret).toString(CryptoJS.enc.Base64);
+	console.log('signature:', signature);
+
+	var data = new FormData();
+	data.append('Content-Type', 'multipart/form-data');
+	data.append('sample', blob);
+	data.append('access_key', access_key);
+	data.append('data_type', data_type);
+	data.append('signature_version', signature_version);
+	data.append('signature', signature);
+	data.append('sample_bytes', blob.size);
+	data.append('timestamp', timestamp);
+
+	var req = xhr(uri, {
+		method,
+		data,
+		responseType: 'json'
+	});
+	console.log('req:', req.status, req.response);
 }
 
 function transcribeEntry(aArg, aComm) {

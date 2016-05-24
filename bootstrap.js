@@ -71,6 +71,7 @@ function initRecord() {
 	}).then(function (stream) {
 		// do something with the stream
 		var recorder = new w.MediaRecorder(stream);
+		recorder.mimeType = 'audio/ogg';
 		storeEntry.recorder = recorder;
 
 		gWorkerComm.postMessage('startRecord', {aId:storeEntry.abinst.aId});
