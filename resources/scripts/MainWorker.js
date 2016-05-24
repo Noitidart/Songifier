@@ -4,6 +4,7 @@ importScripts('resource://gre/modules/osfile.jsm');
 // Globals
 var core;
 var gBsComm;
+var gStore; // array of active things, id is held in gStore[i].abinst.aId
 
 function init(aArg, aComm) {
 	core = aArg;
@@ -73,6 +74,33 @@ self.onclose = function() {
 };
 
 function instantInstantiation() {}
+
+// store functions
+function removeById(aId) {
+	// returns true on success, false on fail
+	var l = gStore.length;
+	for (var i=0; i<l; i++) {
+		var entry = gStore[i];
+		if (entry.abinst.aId === aId) {
+			gStore.splice(i, 1);
+			return true;
+		}
+	}
+
+	return false;
+}
+
+function getById(aId) {
+	// returns entry on success, null if not found
+	var l = gStore.length;
+	for (var i=0; i<l; i++) {
+		var entry = gStore[i];
+		if (entry.abinst.aId === aId) {
+			return entry;
+		}
+	}
+	return null;
+}
 
 // start - common helper functions
 function Deferred() { // revFinal
