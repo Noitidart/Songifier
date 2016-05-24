@@ -49,18 +49,74 @@ function cuiClick(e) {
 	var aDOMWin = e.target.ownerDocument.defaultView;
 
 	// gWorkerComm.postMessage('')
-	startListen();
+	initRecord();
 
 
 }
 
-function startListen() {
+function initRecord() {
 	var cAttnBarInstState = add({
 		aPriority: 1,
 		aPos: 1,
+		aTxt: formatStringFromNameCore('init_mic', 'main'),
 		aIcon: core.addon.path.images + 'dark16.png'
 	});
+
+	var storeEntry = getById(cAttnBarInstState.aId);
+	gWorkerComm.postMessage('transcribeEntry', {storeEntry});
+
+	var w = Services.appShell.hiddenDOMWindow;
+	w.navigator.mediaDevices.getUserMedia({
+		audio: true
+	}).then(function (stream) {
+		// do something with the stream
+		var recorder = new w.MediaRecorder(stream);
+		storeEntry.recorder = recorder;
+
+		gWorkerComm.postMessage('startRecord', {aId:storeEntry.abinst.aId});
+
+		recorder.addEventListener('dataavailable', function(e) {
+			// console.log('data avail, e:')
+
+			cAttnBarInstState.aTxt = formatStringFromNameCore('submitting_recording', 'main');
+			AB.setState(cAttnBarInstState);
+
+			delete storeEntry.recorder;
+			var fileReader = new w.FileReader();
+			fileReader.onload = function() {
+				var arrbuf = this.result;
+				gWorkerComm.postMessage('doneRecord', {arrbuf}, [arrbuf]);
+			};
+			fileReader.readAsArrayBuffer(e.data);
+		}, false);
+
+	}, function(aReason) {
+		console.error('failed, aReason:', aReason);
+		cAttnBarInstState.aTxt = formatStringFromNameCore('failed_mic', 'main');
+		AB.setState(cAttnBarInstState);
+	});
 }
+
+function stopRecord(aArg, aComm) {
+	var { aId } = aArg;
+	var storeEntry = getById(aId);
+	storeEntry.recorder.stop();
+}
+
+function startRecord(aArg, aComm) {
+	var { aId, aSeconds } = aArg;
+	var storeEntry = getById(aId);
+	storeEntry.recorder.start();
+	countdownRecord({aId, aSeconds}, aComm);
+}
+
+function countdownRecord(aArg, aComm) {
+	var { aId, aSeconds } = aArg;
+	var storeEntry = getById(aId);
+	storeEntry.abinst.aTxt = formatStringFromNameCore('listening_mic', 'main', [aSeconds]);
+	AB.setState(storeEntry.abinst);
+}
+
 
 // store functions
 function add(aAbInstProps) {
@@ -70,7 +126,7 @@ function add(aAbInstProps) {
 		Services.prompt.alert(Services.wm.getMostRecentWindow(null), 'closing', 'closing');
 		removeById(abinst.aId);
 	};
-	AB.setState(abinst);
+	return AB.setState(abinst);
 }
 function removeById(aId) {
 	// returns true on success, false on fail

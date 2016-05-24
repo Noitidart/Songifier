@@ -4,7 +4,7 @@ importScripts('resource://gre/modules/osfile.jsm');
 // Globals
 var core;
 var gBsComm;
-var gStore; // array of active things, id is held in gStore[i].abinst.aId
+var gStore = []; // array of active things, id is held in gStore[i].abinst.aId
 
 function init(aArg, aComm) {
 	core = aArg;
@@ -74,6 +74,42 @@ self.onclose = function() {
 };
 
 function instantInstantiation() {}
+
+function countdownRecord(aId) {
+	var storeEntry = getById(aId);
+	storeEntry.secleft--;
+	if (!storeEntry.secleft) {
+		clearInterval(storeEntry.countdownInterval);
+		gBsComm.postMessage('stopRecord', {aId});
+	} else {
+		gBsComm.postMessage('countdownRecord', {aId, aSeconds:storeEntry.secleft});
+	}
+}
+
+function doneRecord(aArg, aComm) {
+	var { arrbuf } = aArg;
+
+	try {
+		OS.File.writeAtomic(OS.Path.join(OS.Constants.Path.desktopDir, Date.now() + '.ogg'), new Uint8Array(arrbuf));
+	} catch(ex) {
+		console.error('failed to save, ex:', ex);
+		throw new Error('failed to save, ex: ' + ex);
+	}
+	console.log('succesfully saved');
+}
+
+function transcribeEntry(aArg, aComm) {
+	var { storeEntry } = aArg;
+	gStore.push(storeEntry);
+}
+
+function startRecord(aArg, aComm) {
+	var { aId } = aArg;
+	var storeEntry = getById(aId);
+	storeEntry.secleft = 8;
+	aComm.postMessage('startRecord', { aId, aSeconds:storeEntry.secleft });
+	storeEntry.countdownInterval = setInterval(countdownRecord.bind(null, aId), 1000);
+}
 
 // store functions
 function removeById(aId) {
@@ -213,6 +249,100 @@ function xhr(aUrlOrFileUri, aOptions={}) {
 
 	// console.error('done xhr!!!');
 	return cRequest;
+}
+
+function xhrAsync(aUrlOrFileUri, aCallback, aOptions={}) {
+	// console.error('in xhr!!! aUrlOrFileUri:', aUrlOrFileUri);
+
+	// all requests are sync - as this is in a worker
+	var aOptionsDefaults = {
+		responseType: 'text',
+		timeout: 0, // integer, milliseconds, 0 means never timeout, value is in milliseconds
+		headers: null, // make it an object of key value pairs
+		method: 'GET', // string
+		data: null // make it whatever you want (formdata, null, etc), but follow the rules, like if aMethod is 'GET' then this must be null
+	};
+	Object.assign(aOptionsDefaults, aOptions);
+	aOptions = aOptionsDefaults;
+
+	var request = new XMLHttpRequest();
+
+	var evf = f => ['load', 'error', 'abort', 'timeout'].forEach(f);
+	evf(m => request.addEventListener(m, handler, false));
+
+	var handler = ev => {
+		evf(m => request.removeEventListener(m, handler, !1));
+
+		switch (ev.type) {
+			case 'load':
+
+					aCallback({request, result:true});
+					// if (xhr.readyState == 4) {
+					// 	if (xhr.status == 200) {
+					// 		deferredMain_xhr.resolve(xhr);
+					// 	} else {
+					// 		var rejObj = {
+					// 			name: 'deferredMain_xhr.promise',
+					// 			aReason: 'Load Not Success', // loaded but status is not success status
+					// 			xhr: xhr,
+					// 			message: xhr.statusText + ' [' + ev.type + ':' + xhr.status + ']'
+					// 		};
+					// 		deferredMain_xhr.reject(rejObj);
+					// 	}
+					// } else if (xhr.readyState == 0) {
+					// 	var uritest = Services.io.newURI(aStr, null, null);
+					// 	if (uritest.schemeIs('file')) {
+					// 		deferredMain_xhr.resolve(xhr);
+					// 	} else {
+					// 		var rejObj = {
+					// 			name: 'deferredMain_xhr.promise',
+					// 			aReason: 'Load Failed', // didnt even load
+					// 			xhr: xhr,
+					// 			message: xhr.statusText + ' [' + ev.type + ':' + xhr.status + ']'
+					// 		};
+					// 		deferredMain_xhr.reject(rejObj);
+					// 	}
+					// }
+
+				break;
+			case 'abort':
+			case 'error':
+			case 'timeout':
+
+					var result_details = {
+						reason: ev.type,
+						request,
+						message: request.statusText + ' [' + ev.type + ':' + request.status + ']'
+					};
+					aCallback({request:request, result:false, result_details});
+
+				break;
+			default:
+				var result_details = {
+					reason: 'unknown',
+					request,
+					message: request.statusText + ' [' + ev.type + ':' + request.status + ']'
+				};
+				aCallback({xhr:request, result:false, result_details});
+		}
+	};
+
+
+	request.open(aOptions.method, aUrlOrFileUri, true); // 3rd arg is false for async
+
+	if (aOptions.headers) {
+		for (var h in aOptions.headers) {
+			request.setRequestHeader(h, aOptions.headers[h]);
+		}
+	}
+
+	request.responseType = aOptions.responseType;
+	request.send(aOptions.data);
+
+	// console.log('response:', request.response);
+
+	// console.error('done xhr!!!');
+
 }
 
 // start - CommAPI
