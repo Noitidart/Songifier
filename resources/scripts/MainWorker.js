@@ -97,15 +97,22 @@ function doneRecord(aArg, aComm) {
 	// arrbuf is optional. on first doneRecord it must be there. on consequent, can recall, to try to resubmit
 
 	var aState = {aTxt:formatStringFromName('submitting_recording', 'main')};
-	gBsComm.postMessage('updateAttnBar', {aId, aState});
 
 	var storeEntry = getById(aId);
+	var blob;
 	if (arrbuf) {
-		storeEntry.arrbuf = arrbuf;
-	} else {
-		arrbuf = storeEntry.arrbuf;
+		// storeEntry.arrbuf = arrbuf;
+		storeEntry.blob = new Blob([new Uint8Array(arrbuf)], {type: 'audio/ogg'});
+		storeEntry.url = URL.createObjectURL(storeEntry.blob);
+		aState.fixed_metadata = { // this one doesnt get wiped like aState.metadata
+			url: storeEntry.url
+		};
 	}
+	blob = storeEntry.blob;
 
+	gBsComm.postMessage('updateAttnBar', {aId, aState});
+
+	/*
 	var arrbuf_copy = arrbuf.slice();
 	try {
 		OS.File.writeAtomic(OS.Path.join(OS.Constants.Path.desktopDir, Date.now() + '.ogg'), new Uint8Array(arrbuf_copy));
@@ -114,8 +121,7 @@ function doneRecord(aArg, aComm) {
 		throw new Error('failed to save, ex: ' + ex);
 	}
 	console.log('succesfully saved');
-
-	 var blob = new Blob([new Uint8Array(arrbuf)], {type: 'audio/ogg'});
+	*/
 
 	// keep this file saved, until succesfully identified
 	var method = 'POST';
@@ -242,6 +248,9 @@ function removeById(aId) {
 	for (var i=0; i<l; i++) {
 		var entry = gStore[i];
 		if (entry.abinst.aId === aId) {
+			if (entry.abinst.fixed_metadata && entry.abinst.fixed_metadata.url) {
+				URL.revokeObjectURL(entry.abinst.fixed_metadata.url);
+			}
 			gStore.splice(i, 1);
 			return true;
 		}

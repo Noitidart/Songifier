@@ -103,8 +103,12 @@ function initRecord() {
 
 	}, function(aReason) {
 		console.error('failed, aReason:', aReason);
-		cAttnBarInstState.aTxt = formatStringFromNameCore('failed_mic', 'main');
-		AB.setState(cAttnBarInstState);
+		updateAttnBar({
+			aId: cAttnBarInstState.aId,
+			aState: {
+				aTxt: formatStringFromNameCore('failed_mic', 'main')
+			}
+		});
 	});
 }
 
@@ -124,8 +128,12 @@ function startRecord(aArg, aComm) {
 function countdownRecord(aArg, aComm) {
 	var { aId, aSeconds } = aArg;
 	var storeEntry = getById(aId);
-	storeEntry.abinst.aTxt = formatStringFromNameCore('listening_mic', 'main', [aSeconds]);
-	AB.setState(storeEntry.abinst);
+	updateAttnBar({
+		aId,
+		aState: {
+			aTxt: formatStringFromNameCore('listening_mic', 'main', [aSeconds])
+		}
+	});
 }
 
 function openUrl(aUrl) {
@@ -142,6 +150,19 @@ function openMultiple(aMusicArr) {
 		inBackground: false,
 		relatedToCurrent: false
 	});
+}
+
+function playRecording(aId) {
+	var storeEntry = getById(aId);
+	var w = Services.wm.getMostRecentWindow('navigator:browser');
+	var audioEl = w.document.createElementNS('http://www.w3.org/1999/xhtml', 'audio');
+	audioEl.setAttribute('autoplay', 'true');
+	audioEl.setAttribute('style', 'display:none;');
+	audioEl.addEventListener('end', function() {
+		audioEl.parentNode.removeChild(audioEl);
+	})
+	audioEl.src = storeEntry.abinst.fixed_metadata.url;
+	w.document.appendChild(audioEl);
 }
 
 function updateAttnBar(aArg, aComm) {
@@ -185,7 +206,8 @@ function updateAttnBar(aArg, aComm) {
 				break;
 			case formatStringFromNameCore('server_match_set_txt_from_metadata', 'main'):
 
-					newState.aTxt = formatStringFromNameCore('song_title_artist', 'main', [newState.metadata.title, newState.metadata.artist]);
+					var copyTxt = formatStringFromNameCore('song_title_artist', 'main', [newState.metadata.title, newState.metadata.artist]);
+					newState.aTxt = formatStringFromNameCore('server_matchfound_song_title_artist', 'main', [formatStringFromNameCore('song_title_artist', 'main', [newState.metadata.title, newState.metadata.artist])]);
 					newState.aBtns = [
 						{
 							bTxt: formatStringFromNameCore('open_youtube', 'main'),
@@ -201,17 +223,17 @@ function updateAttnBar(aArg, aComm) {
 							},
 							bIcon: core.addon.path.images + 'itunes-16.png'
 						},
-						{
-							bTxt: formatStringFromNameCore('open_spotify', 'main'),
-							bClick: function(doClose, aBrowser) {
-								openUrl(newState.metadata.spotifyUrl);
-							},
-							bIcon: core.addon.path.images + 'spotify-16.png'
-						},
+						// {
+						// 	bTxt: formatStringFromNameCore('open_spotify', 'main'),
+						// 	bClick: function(doClose, aBrowser) {
+						// 		openUrl(newState.metadata.spotifyUrl);
+						// 	},
+						// 	bIcon: core.addon.path.images + 'spotify-16.png'
+						// },
 						{
 							bTxt: formatStringFromNameCore('copy', 'main'),
 							bClick: function(doClose, aBrowser) {
-								CLIPBOARD.set(newState.aTxt, 'text');
+								CLIPBOARD.set(copyTxt, 'text');
 							},
 							bIcon: core.addon.path.images + 'copy-16.png'
 						}
@@ -221,12 +243,36 @@ function updateAttnBar(aArg, aComm) {
 		}
 	}
 
-	AB.setState(newState);
+	if (newState.fixed_metadata && newState.fixed_metadata.url) {
+		if (!newState.aBtns) {
+			newState.aBtns = [];
+		}
+		var foundPlayRecording = false;
+		for (var i=0; i<newState.aBtns.length; i++) {
+			if (newState.aBtns[i].bTxt == formatStringFromNameCore('play_recording', 'main')) {
+				foundPlayRecording = true;
+				break;
+			}
+		}
+		if (!foundPlayRecording) {
+			newState.aBtns.splice(0, 0, {
+				bTxt: formatStringFromNameCore('play_recording', 'main'),
+				bIcon: core.addon.path.images + 'play-16.png',
+				bClick: function(doClose, aBrowser) {
+					playRecording(aId);
+				}
+			});
+		}
+	}
+
+	storeEntry.abinst = newState;
+	AB.setState(storeEntry.abinst);
 }
 // store functions
 function add(aAbInstProps) {
 	var abinst = AB.setState(aAbInstProps);
-	gStore.push({abinst});
+	var storeEntry = {abinst};
+	gStore.push(storeEntry);
 	abinst.aClose = function(aBrowser) {
 		// Services.prompt.alert(Services.wm.getMostRecentWindow(null), 'closing', 'closing');
 		removeById(abinst.aId);
