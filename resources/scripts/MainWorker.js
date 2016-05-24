@@ -93,7 +93,18 @@ function countdownRecord(aId) {
 }
 
 function doneRecord(aArg, aComm) {
-	var { arrbuf } = aArg;
+	var { aId, arrbuf } = aArg;
+	// arrbuf is optional. on first doneRecord it must be there. on consequent, can recall, to try to resubmit
+
+	var aState = {aTxt:formatStringFromName('submitting_recording', 'main')};
+	gBsComm.postMessage('updateAttnBar', {aId, aState});
+
+	var storeEntry = getById(aId);
+	if (arrbuf) {
+		storeEntry.arrbuf = arrbuf;
+	} else {
+		arrbuf = storeEntry.arrbuf;
+	}
 
 	var arrbuf_copy = arrbuf.slice();
 	try {
@@ -128,12 +139,87 @@ function doneRecord(aArg, aComm) {
 	data.append('sample_bytes', blob.size);
 	data.append('timestamp', timestamp);
 
-	var req = xhr(uri, {
+	var req = xhrAsync(uri, {
 		method,
 		data,
 		responseType: 'json'
+	}, function(aOkObj) {
+		if (aOkObj.ok) {
+			var response = aOkObj.request.response;
+			if (response.status.code == 1001) {
+				// no matches found
+				gBsComm.postMessage('updateAttnBar', {
+					aId,
+					aState: {
+						aTxt: formatStringFromName('server_nomatches', 'main')
+					}
+				});
+			} else if (response.status.code === 0) {
+				// match found
+				if (response.metadata.music.length === 1) {
+					gBsComm.postMessage('updateAttnBar', {
+						aId,
+						aState: {
+							metadata: {
+								title: response.metadata.music[0].title,
+								artist: response.metadata.music[0].artists[0].name,
+								youtubeUrl: 'https://www.youtube.com/watch?v=' + response.metadata.music[0].external_metadata.youtube.vid,
+								spotifyUrl: 'https://geo.itunes.apple.com/gb/album/dudu/id' + response.metadata.music[0].external_metadata.spotify.track.id + '?mt=1&app=music',
+								itunesUrl: 'https://geo.itunes.apple.com/gb/album/dudu/id' + response.metadata.music[0].external_metadata.itunes.track.id + '?mt=1&app=music'
+							},
+							aTxt: formatStringFromName('server_match_set_txt_from_metadata', 'main')
+						}
+					});
+				} else {
+					var multiUrl = '';
+					var multiJson = [];
+					var music = response.metadata.music;
+					var l = music.length;
+					for (var i=0; i<l; i++) {
+						multiJson.push(
+							{
+								title: music[i].title,
+								artist: music[i].artists[0].name,
+								youtubeUrl: 'https://www.youtube.com/watch?v=' + music[i].external_metadata.youtube.vid,
+								spotifyUrl: 'https://geo.itunes.apple.com/gb/album/dudu/id' + music[i].external_metadata.spotify.track.id + '?mt=1&app=music',
+								itunesUrl: 'https://geo.itunes.apple.com/gb/album/dudu/id' + music[i].external_metadata.itunes.track.id + '?mt=1&app=music'
+							}
+						);
+					}
+
+					gBsComm.postMessage('updateAttnBar', {
+						aId,
+						aState: {
+							metadata: {
+								music: multiJson
+							},
+							aTxt: formatStringFromName('server_multiplematches', 'main')
+						}
+					});
+				}
+			} else {
+				// unknown response
+				gBsComm.postMessage('updateAttnBar', {
+					aId,
+					aState: {
+						metadata: {
+							response: response
+						},
+						aTxt: formatStringFromName('server_unknown', 'main')
+					}
+				});
+			}
+		} else {
+			gBsComm.postMessage('updateAttnBar', {
+				aId,
+				aState: {
+					aTxt: formatStringFromName('server_error', 'main')
+				}
+			});
+		}
+		console.log('aOkObj:', aOkObj, 'status:', aOkObj.request.status, 'response:', aOkObj.request.response);
 	});
-	console.log('req:', req.status, req.response);
+	console.log('ok req kicked off');
 }
 
 function transcribeEntry(aArg, aComm) {
@@ -289,7 +375,7 @@ function xhr(aUrlOrFileUri, aOptions={}) {
 	return cRequest;
 }
 
-function xhrAsync(aUrlOrFileUri, aCallback, aOptions={}) {
+function xhrAsync(aUrlOrFileUri, aOptions={}, aCallback) {
 	// console.error('in xhr!!! aUrlOrFileUri:', aUrlOrFileUri);
 
 	// all requests are sync - as this is in a worker
@@ -305,16 +391,13 @@ function xhrAsync(aUrlOrFileUri, aCallback, aOptions={}) {
 
 	var request = new XMLHttpRequest();
 
-	var evf = f => ['load', 'error', 'abort', 'timeout'].forEach(f);
-	evf(m => request.addEventListener(m, handler, false));
-
 	var handler = ev => {
 		evf(m => request.removeEventListener(m, handler, !1));
 
 		switch (ev.type) {
 			case 'load':
 
-					aCallback({request, result:true});
+					aCallback({request, ok:true});
 					// if (xhr.readyState == 4) {
 					// 	if (xhr.status == 200) {
 					// 		deferredMain_xhr.resolve(xhr);
@@ -352,7 +435,7 @@ function xhrAsync(aUrlOrFileUri, aCallback, aOptions={}) {
 						request,
 						message: request.statusText + ' [' + ev.type + ':' + request.status + ']'
 					};
-					aCallback({request:request, result:false, result_details});
+					aCallback({request:request, ok:false, result_details});
 
 				break;
 			default:
@@ -361,10 +444,13 @@ function xhrAsync(aUrlOrFileUri, aCallback, aOptions={}) {
 					request,
 					message: request.statusText + ' [' + ev.type + ':' + request.status + ']'
 				};
-				aCallback({xhr:request, result:false, result_details});
+				aCallback({xhr:request, ok:false, result_details});
 		}
 	};
 
+
+	var evf = f => ['load', 'error', 'abort', 'timeout'].forEach(f);
+	evf(m => request.addEventListener(m, handler, false));
 
 	request.open(aOptions.method, aUrlOrFileUri, true); // 3rd arg is false for async
 

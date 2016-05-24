@@ -1,9 +1,21 @@
 // Imports
 const {interfaces: Ci, utils: Cu} = Components;
-// const { require } = Cu.import('resource://gre/modules/commonjs/toolkit/require.js', {}); // const COMMONJS_URI = 'resource://gre/modules/commonjs';
+const { require } = Cu.import('resource://gre/modules/commonjs/toolkit/require.js', {}); // const COMMONJS_URI = 'resource://gre/modules/commonjs';
 Cu.import('resource:///modules/CustomizableUI.jsm');
 Cu.import('resource://gre/modules/Services.jsm');
 Cu.import('resource://gre/modules/XPCOMUtils.jsm');
+
+const CLIPBOARD = require('sdk/clipboard');
+
+// start - beutify stuff
+var gBeautify = {};
+(function() {
+	var { require } = Cu.import('resource://devtools/shared/Loader.jsm', {});
+	var { jsBeautify } = require('devtools/shared/jsbeautify/src/beautify-js');
+	gBeautify.js = jsBeautify;
+}());
+// end - beutify stuff
+
 
 // Globals
 var core = { // core has stuff added into by MainWorker (currently MainWorker) and then it is updated
@@ -42,6 +54,7 @@ var core = { // core has stuff added into by MainWorker (currently MainWorker) a
 
 var gCuiCssFilename;
 var gCuiCssUri;
+var gGenCssUri;
 var gWorkerComm;
 var gStore = [];
 
@@ -79,14 +92,11 @@ function initRecord() {
 		recorder.addEventListener('dataavailable', function(e) {
 			// console.log('data avail, e:')
 
-			cAttnBarInstState.aTxt = formatStringFromNameCore('submitting_recording', 'main');
-			AB.setState(cAttnBarInstState);
-
 			delete storeEntry.recorder;
 			var fileReader = new w.FileReader();
 			fileReader.onload = function() {
 				var arrbuf = this.result;
-				gWorkerComm.postMessage('doneRecord', {arrbuf}, [arrbuf]);
+				gWorkerComm.postMessage('doneRecord', {aId:cAttnBarInstState.aId, arrbuf}, [arrbuf]);
 			};
 			fileReader.readAsArrayBuffer(e.data);
 		}, false);
@@ -118,14 +128,109 @@ function countdownRecord(aArg, aComm) {
 	AB.setState(storeEntry.abinst);
 }
 
+function openUrl(aUrl) {
+	var w = Services.wm.getMostRecentWindow('navigator:browser');
+	w.gBrowser.loadOneTab(aUrl, {
+		inBackground: false,
+		relatedToCurrent: false
+	});
+}
 
+function openMultiple(aMusicArr) {
+	var w = Services.wm.getMostRecentWindow('navigator:browser');
+	w.gBrowser.loadOneTab('data:text/plain,' + encodeURIComponent(gBeautify.js(JSON.stringify(aMusicArr))), {
+		inBackground: false,
+		relatedToCurrent: false
+	});
+}
+
+function updateAttnBar(aArg, aComm) {
+	var { aId, aState } = aArg;
+	var storeEntry = getById(aId);
+	var newState = {};
+	var oldState = storeEntry.abinst;
+	Object.assign(newState, oldState);
+	Object.assign(newState, aState);
+
+	if (newState.aTxt != oldState.aTxt) {
+		switch (newState.aTxt) {
+			case formatStringFromNameCore('server_error', 'main'):
+
+					newState.aBtns = [
+						{
+							bTxt: formatStringFromNameCore('server_retry', 'main'),
+							bClick: function(doClose, aBrowser) {
+								gWorkerComm.postMessage('doneRecord', {aId});
+							}
+						}
+					];
+
+				break;
+			case formatStringFromNameCore('submitting_recording', 'main'):
+
+					newState.aBtns = null;
+
+				break;
+			case formatStringFromNameCore('server_multiplematches', 'main'):
+
+					newState.aBtns = [
+						{
+							bTxt: formatStringFromNameCore('show_multi', 'main'),
+							bClick: function(doClose, aBrowser) {
+								openMultiple(newState.metadata.music)
+							}
+						}
+					];
+
+				break;
+			case formatStringFromNameCore('server_match_set_txt_from_metadata', 'main'):
+
+					newState.aTxt = formatStringFromNameCore('song_title_artist', 'main', [newState.metadata.title, newState.metadata.artist]);
+					newState.aBtns = [
+						{
+							bTxt: formatStringFromNameCore('open_youtube', 'main'),
+							bClick: function(doClose, aBrowser) {
+								openUrl(newState.metadata.youtubeUrl);
+							},
+							bIcon: core.addon.path.images + 'youtube-16.png'
+						},
+						{
+							bTxt: formatStringFromNameCore('open_itunes', 'main'),
+							bClick: function(doClose, aBrowser) {
+								openUrl(newState.metadata.itunesUrl);
+							},
+							bIcon: core.addon.path.images + 'itunes-16.png'
+						},
+						{
+							bTxt: formatStringFromNameCore('open_spotify', 'main'),
+							bClick: function(doClose, aBrowser) {
+								openUrl(newState.metadata.spotifyUrl);
+							},
+							bIcon: core.addon.path.images + 'spotify-16.png'
+						},
+						{
+							bTxt: formatStringFromNameCore('copy', 'main'),
+							bClick: function(doClose, aBrowser) {
+								CLIPBOARD.set(newState.aTxt, 'text');
+							},
+							bIcon: core.addon.path.images + 'copy-16.png'
+						}
+					];
+
+				break;
+		}
+	}
+
+	AB.setState(newState);
+}
 // store functions
 function add(aAbInstProps) {
 	var abinst = AB.setState(aAbInstProps);
 	gStore.push({abinst});
 	abinst.aClose = function(aBrowser) {
-		Services.prompt.alert(Services.wm.getMostRecentWindow(null), 'closing', 'closing');
+		// Services.prompt.alert(Services.wm.getMostRecentWindow(null), 'closing', 'closing');
 		removeById(abinst.aId);
+		gWorkerComm.postMessage('removeById', abinst.aId);
 	};
 	return AB.setState(abinst);
 }
@@ -207,6 +312,7 @@ var windowListener = {
 		if (aDOMWindow.gBrowser) {
 			var domWinUtils = aDOMWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
 			domWinUtils.loadSheet(gCuiCssUri, domWinUtils.AUTHOR_SHEET);
+			domWinUtils.loadSheet(gGenCssUri, domWinUtils.AUTHOR_SHEET);
 		}
 	},
 	unloadFromWindow: function (aDOMWindow) {
@@ -215,6 +321,7 @@ var windowListener = {
 		if (aDOMWindow.gBrowser) {
 			var domWinUtils = aDOMWindow.QueryInterface(Ci.nsIInterfaceRequestor).getInterface(Ci.nsIDOMWindowUtils);
 			domWinUtils.removeSheet(gCuiCssUri, domWinUtils.AUTHOR_SHEET);
+			domWinUtils.removeSheet(gGenCssUri, domWinUtils.AUTHOR_SHEET);
 		}
 	}
 };
@@ -253,6 +360,7 @@ function startup(aData, aReason) {
 			}
 		}
 		gCuiCssUri = Services.io.newURI(core.addon.path.styles + gCuiCssFilename, null, null);
+		gGenCssUri = Services.io.newURI(core.addon.path.styles + 'general.css', null, null);
 
 		// window listener
 		windowListener.register();
@@ -570,6 +678,10 @@ var AB = { // AB stands for attention bar
 	},
 	uninit: function() {
 		// Services.mm.removeMessageListener(core.addon.id + '-AB', AB.msgListener);
+		// trigger close of any open bars
+		for (var aId in AB.Insts) {
+			AB.Callbacks[aId]();
+		}
 
 		Services.wm.removeListener(AB.winListener);
 
@@ -714,7 +826,7 @@ function formatStringFromNameCore(aLocalizableStr, aPackageName, aReplacements) 
     // formatStringFromNameCore is formating only version of the worker version of formatStringFromName, it is based on core.addon.l10n cache
 
 	// try {
-	// 	var cLocalizedStr = core.addon.l10n[aPackageName];
+	// 	var cLocalizedStr = core.addon.l10n[aPackageName][aLocalizableStr];
 	// } catch (ex) {
 	// 	console.error('formatStringFromNameCore error:', ex, 'args:', aLocalizableStr, aPackageName, aReplacements);
 	// }

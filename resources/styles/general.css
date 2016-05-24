@@ -1,0 +1,20 @@
+@-moz-document url("chrome://browser/content/browser.xul") {
+	/*
+	#cui_songifier .toolbarbutton-badge {
+		background-color: #00A8EC;
+	}
+	*/
+	notification button[class*=songifier] .button-icon,
+	notificationbox[id*=SongifierABjetpack] .button-icon {
+		display: -moz-box;
+		-moz-margin-end: 5px;
+	}
+
+	#toolbar-context-menu_nativeshot-menuitem .menu-iconic-left,
+	#toolbar-context-menu_nativeshot-menuitem .menu-iconic-right,
+	#customizationPanelItemContextMenu_nativeshot-menuitem .menu-iconic-left,
+	#customizationPanelItemContextMenu_nativeshot-menuitem .menu-iconic-right {
+		visibility: visible; /* needed because on ubuntu 15.01 they are hidden */
+	}
+	/*end-non cui stuff*/
+}
