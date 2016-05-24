@@ -157,12 +157,10 @@ function playRecording(aId) {
 	var w = Services.wm.getMostRecentWindow('navigator:browser');
 	var audioEl = w.document.createElementNS('http://www.w3.org/1999/xhtml', 'audio');
 	audioEl.setAttribute('autoplay', 'true');
-	audioEl.setAttribute('style', 'display:none;');
 	audioEl.addEventListener('end', function() {
 		audioEl.parentNode.removeChild(audioEl);
 	})
 	audioEl.src = storeEntry.abinst.fixed_metadata.url;
-	w.document.appendChild(audioEl);
 }
 
 function updateAttnBar(aArg, aComm) {
@@ -1022,7 +1020,9 @@ function workerComm(aWorkerPath, onBeforeInit, onAfterInit, aWebWorker) {
 			}
 		}
 
-		worker.terminate();
+		if (worker) { // because maybe it was setup, but never instantiated
+			worker.terminate();
+		}
 
 	};
 	this.listener = function(e) {

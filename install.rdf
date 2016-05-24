@@ -23,7 +23,7 @@
 		<!-- must provide default non-localized because It's used as a default on AMO. It's used as a default by the add-on manager, with the possibility of other locales overriding it. Failure to provide a non-localized name will lead to failed upload on AMO. -->
 		<em:name>Songifier</em:name>
 		<em:description>A song identifier that can detect what's playing on your speakers or your microphone.</em:description>
-		<em:creator>Noitidart</em:creator>
+		<em:creator>Noitidart and ACRCloud.com</em:creator>
 		<em:contributor>BogdanRosu@Creative for Icon</em:contributor>
 		<!-- start localizing - For each entry in default data MUST have equivalent in each localized block -->
 		<em:localized>
@@ -31,7 +31,7 @@
 				<em:locale>en-US</em:locale>
 				<em:name>Songifier</em:name>
 				<em:description>A song identifier that can detect what's playing on your speakers or your microphone.</em:description>
-				<em:creator>Noitidart</em:creator>
+				<em:creator>Noitidart and ACRCloud.com</em:creator>
 				<em:contributor>BogdanRosu@Creative for Icon</em:contributor>
 			</Description>
 		</em:localized>
