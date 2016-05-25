@@ -238,6 +238,37 @@ function updateAttnBar(aArg, aComm) {
 					];
 
 				break;
+			default:
+
+				// check if it is listenting
+				var listenPreReplace = formatStringFromNameCore('listening_mic', 'main');
+				var ixReplace = listenPreReplace.indexOf('%');
+				listenPreReplace = listenPreReplace.substr(0, ixReplace);
+				if (newState.aTxt.substr(0, ixReplace) == listenPreReplace) {
+					newState.aBtns = [
+						{
+							bTxt: formatStringFromNameCore('stop_recording', 'main'),
+							bClick: function(doClose, aBrowser) {
+								updateAttnBar(
+									{
+										aId,
+										aState: {
+											aTxt: formatStringFromNameCore('stopping_record', 'main'),
+											aBtns: []
+										}
+									},
+									aComm
+								);
+								gWorkerComm.postMessage('mergeEntry', {
+									aId,
+									aMergeObj: {
+										secleft: 1
+									}
+								});
+							}
+						}
+					];
+				}
 		}
 	}
 

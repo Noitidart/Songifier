@@ -237,10 +237,15 @@ function transcribeEntry(aArg, aComm) {
 	gStore.push(storeEntry);
 }
 
+function mergeEntry(aArg, aComm) {
+	var { aId, aMergeObj } = aArg;
+	Object.assign(getById(aId), aMergeObj);
+}
+
 function startRecord(aArg, aComm) {
 	var { aId } = aArg;
 	var storeEntry = getById(aId);
-	storeEntry.secleft = 8;
+	storeEntry.secleft = 30;
 	aComm.postMessage('startRecord', { aId, aSeconds:storeEntry.secleft });
 	storeEntry.countdownInterval = setInterval(countdownRecord.bind(null, aId), 1000);
 }
