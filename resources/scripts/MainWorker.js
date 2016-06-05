@@ -74,9 +74,7 @@ function init(aArg, aComm) {
 	return core;
 }
 
-self.onclose = function() {
-
-};
+// self.onclose = function() {};
 
 function instantInstantiation() {}
 
