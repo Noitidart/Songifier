@@ -3,7 +3,6 @@ const {interfaces: Ci, utils: Cu} = Components;
 const { require } = Cu.import('resource://gre/modules/commonjs/toolkit/require.js', {}); // const COMMONJS_URI = 'resource://gre/modules/commonjs';
 Cu.import('resource:///modules/CustomizableUI.jsm');
 Cu.import('resource://gre/modules/Services.jsm');
-Cu.import('resource://gre/modules/XPCOMUtils.jsm');
 
 const CLIPBOARD = require('sdk/clipboard');
 
@@ -156,11 +155,14 @@ function playRecording(aId) {
 	var storeEntry = getById(aId);
 	var w = Services.wm.getMostRecentWindow('navigator:browser');
 	var audioEl = w.document.createElementNS('http://www.w3.org/1999/xhtml', 'audio');
+	w.document.documentElement.appendChild(audioEl);
 	audioEl.setAttribute('autoplay', 'true');
-	audioEl.addEventListener('end', function() {
+	audioEl.addEventListener('ended', function() {
+		// Services.prompt.alert(null, 'done', 'done');
 		audioEl.parentNode.removeChild(audioEl);
-	})
+	});
 	audioEl.src = storeEntry.abinst.fixed_metadata.url;
+	// audioEl.play();
 }
 
 function updateAttnBar(aArg, aComm) {
@@ -731,12 +733,12 @@ var AB = { // AB stands for attention bar
 			if (!aDOMWindow.React) {
 				console.log('WILL NOW LOAD IN REACT');
 				// resource://devtools/client/shared/vendor/react.js
-				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react-with-addons.js?' + core.addon.cache_key, aDOMWindow); // even if i load it into aDOMWindow.blah and .blah is an object, it goes into global, so i just do aDOMWindow now
+				Services.scriptloader.loadSubScript(core.addon.path.scripts + '3rd/react-with-addons.js?' + core.addon.cache_key, aDOMWindow); // even if i load it into aDOMWindow.blah and .blah is an object, it goes into global, so i just do aDOMWindow now
 			}
 			if (!aDOMWindow.ReactDOM) {
 				console.log('WILL NOW LOAD IN REACTDOM');
 				// resource://devtools/client/shared/vendor/react-dom.js
-				Services.scriptloader.loadSubScript(core.addon.path.scripts + 'react-dom.js?' + core.addon.cache_key, aDOMWindow);
+				Services.scriptloader.loadSubScript(core.addon.path.scripts + '3rd/react-dom.js?' + core.addon.cache_key, aDOMWindow);
 			}
 			Services.scriptloader.loadSubScript(core.addon.path.scripts + 'ab-react-components.js?' + core.addon.cache_key, aDOMWindow);
 			aDOMWindow.addEventListener(core.addon.id + '-AB', AB.msgEventListener, false);
