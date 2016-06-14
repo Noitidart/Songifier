@@ -89,7 +89,7 @@ function initRecord() {
 		gWorkerComm.postMessage('startRecord', {aId:storeEntry.abinst.aId});
 
 		recorder.addEventListener('dataavailable', function(e) {
-
+			// console.log('data avail, e:')
 
 			delete storeEntry.recorder;
 			var fileReader = new w.FileReader();
@@ -101,7 +101,7 @@ function initRecord() {
 		}, false);
 
 	}, function(aReason) {
-
+		console.error('failed, aReason:', aReason);
 		updateAttnBar({
 			aId: cAttnBarInstState.aId,
 			aState: {
@@ -509,7 +509,7 @@ var AB = { // AB stands for attention bar
 			if (winAB) {
 				if (aInstId in winAB.Insts) {
 					// unmount this
-
+					console.error('aInstId:', aInstId, 'notificationbox-' + aInstId + '--' + AB.domIdPrefix);
 					var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstId + '--' + AB.domIdPrefix);
 					aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
 					cNotificationBox.parentNode.removeChild(cNotificationBox);
@@ -643,7 +643,7 @@ var AB = { // AB stands for attention bar
 				aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
 				var cDeck = aDOMWindow.document.getElementById('content-deck');
 				var cNotificationBox = aDOMWindow.document.createElementNS('http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul', 'notificationbox');
-
+				console.error('inserting', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 				cNotificationBox.setAttribute('id', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 				if (!aInstState.aPos) {
 					cDeck.parentNode.appendChild(cNotificationBox);
@@ -708,19 +708,19 @@ var AB = { // AB stands for attention bar
 		if (!aDOMWindow[core.addon.id + '-AB']) {
 			return;
 		}
-
+		console.error('doing uninit from window');
 		// start - original block link77728110
 		var winAB = aDOMWindow[core.addon.id + '-AB'];
 		for (var aInstsId in winAB.Insts) {
 			// unmount this
-
+			console.error('aInstsId:', aInstsId, 'notificationbox-' + aInstsId + '--' + AB.domIdPrefix);
 			var cNotificationBox = aDOMWindow.document.getElementById('notificationbox-' + aInstsId + '--' + AB.domIdPrefix);
 			aDOMWindow.ReactDOM.unmountComponentAtNode(cNotificationBox);
 			cNotificationBox.parentNode.removeChild(cNotificationBox);
 		}
 		// end - original block link77728110
 		delete aDOMWindow[core.addon.id + '-AB'];
-
+		console.error('done uninit');
 		aDOMWindow.removeEventListener(core.addon.id + '-AB', AB.msgEventListener, false);
 	},
 	ensureInitedIntoWindow: function(aDOMWindow) {
@@ -731,12 +731,12 @@ var AB = { // AB stands for attention bar
 				domIdPrefix: AB.domIdPrefix
 			}; // ab stands for attention bar
 			if (!aDOMWindow.React) {
-
+				console.log('WILL NOW LOAD IN REACT');
 				// resource://devtools/client/shared/vendor/react.js
 				Services.scriptloader.loadSubScript(core.addon.path.scripts + '3rd/react-with-addons.js?' + core.addon.cache_key, aDOMWindow); // even if i load it into aDOMWindow.blah and .blah is an object, it goes into global, so i just do aDOMWindow now
 			}
 			if (!aDOMWindow.ReactDOM) {
-
+				console.log('WILL NOW LOAD IN REACTDOM');
 				// resource://devtools/client/shared/vendor/react-dom.js
 				Services.scriptloader.loadSubScript(core.addon.path.scripts + '3rd/react-dom.js?' + core.addon.cache_key, aDOMWindow);
 			}
@@ -772,7 +772,7 @@ var AB = { // AB stands for attention bar
 		}
 	},
 	msgEventListener: function(e) {
-
+		console.error('getting aMsgEvent, data:', e.detail);
 		var cCallbackId = e.detail.cbid;
 		var cBrowser = e.detail.browser;
 		if (AB.Callbacks[cCallbackId]) { // need this check because react components always send message on click, but it may not have a callback
@@ -782,7 +782,7 @@ var AB = { // AB stands for attention bar
 	// msgListener: {
 	// 	receiveMessage: function(aMsgEvent) {
 	// 		var aMsgEventData = aMsgEvent.data;
-
+	// 		console.error('getting aMsgEvent, data:', aMsgEventData);
 	// 		// this means trigger a callback with id aMsgEventData
 	// 		var cCallbackId = aMsgEventData;
 	// 		var cBrowser = aMsgEvent.target;
@@ -817,7 +817,7 @@ var AB = { // AB stands for attention bar
 			for (var aInstId in AB.Insts) {
 				var aInstState = AB.Insts[aInstId].state;
 				if (aInstState.aId in aDOMWindow[core.addon.id + '-AB'].Insts) {
-
+					console.error('this is really weird, it should never happen, as i only call this function when a new window opens');
 					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
 					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].setState(JSON.parse(JSON.stringify(aInstState)));
 				} else {
@@ -826,7 +826,7 @@ var AB = { // AB stands for attention bar
 					aDOMWindow[core.addon.id + '-AB'].Insts[aInstState.aId].state = aDOMWindow.JSON.parse(aDOMWindow.JSON.stringify(aInstState));
 					var cDeck = aDOMWindow.document.getElementById('content-deck');
 					var cNotificationBox = aDOMWindow.document.createElementNS('http://www.mozilla.org/keymaster/gatekeeper/there.is.only.xul', 'notificationbox');
-
+					console.error('inserting', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 					cNotificationBox.setAttribute('id', 'notificationbox-' + aInstState.aId + '--' + AB.domIdPrefix);
 					if (!aInstState.aPos) {
 						cDeck.parentNode.appendChild(cNotificationBox);
@@ -881,7 +881,7 @@ function genericReject(aPromiseName, aPromiseToReject, aReason) {
 		name: aPromiseName,
 		aReason: aReason
 	};
-
+	console.error('Rejected - ' + aPromiseName + ' - ', rejObj);
 	if (aPromiseToReject) {
 		aPromiseToReject.reject(rejObj);
 	}
@@ -891,7 +891,7 @@ function genericCatch(aPromiseName, aPromiseToReject, aCaught) {
 		name: aPromiseName,
 		aCaught: aCaught
 	};
-
+	console.error('Caught - ' + aPromiseName + ' - ', rejObj);
 	if (aPromiseToReject) {
 		aPromiseToReject.reject(rejObj);
 	}
@@ -905,10 +905,10 @@ function formatStringFromNameCore(aLocalizableStr, aPackageName, aReplacements) 
 	// try {
 	// 	var cLocalizedStr = core.addon.l10n[aPackageName][aLocalizableStr];
 	// } catch (ex) {
-
+	// 	console.error('formatStringFromNameCore error:', ex, 'args:', aLocalizableStr, aPackageName, aReplacements);
 	// }
 	var cLocalizedStr = core.addon.l10n[aPackageName][aLocalizableStr];
-
+	// console.log('cLocalizedStr:', cLocalizedStr, 'args:', aLocalizableStr, aPackageName, aReplacements);
     if (aReplacements) {
         for (var i=0; i<aReplacements.length; i++) {
             cLocalizedStr = cLocalizedStr.replace('%S', aReplacements[i]);
@@ -923,7 +923,7 @@ function validateOptionsObj(aOptions, aOptionsDefaults) {
 	// ensures no invalid keys are found in aOptions, any key found in aOptions not having a key in aOptionsDefaults causes throw new Error as invalid option
 	for (var aOptKey in aOptions) {
 		if (!(aOptKey in aOptionsDefaults)) {
-
+			console.error('aOptKey of ' + aOptKey + ' is an invalid key, as it has no default value, aOptionsDefaults:', aOptionsDefaults, 'aOptions:', aOptions);
 			throw new Error('aOptKey of ' + aOptKey + ' is an invalid key, as it has no default value');
 		}
 	}
@@ -1060,7 +1060,7 @@ function workerComm(aWorkerPath, onBeforeInit, onAfterInit, aWebWorker) {
 	};
 	this.listener = function(e) {
 		var payload = e.data;
-
+		console.log('bootstrap workerComm - incoming, payload:', payload); //, 'e:', e);
 
 		if (payload.method) {
 			if (payload.method == 'triggerOnAfterInit') {
@@ -1069,20 +1069,20 @@ function workerComm(aWorkerPath, onBeforeInit, onAfterInit, aWebWorker) {
 				}
 				return;
 			}
-
+			if (!(payload.method in scope)) { console.error('method of "' + payload.method + '" not in scope'); throw new Error('method of "' + payload.method + '" not in scope') } // dev line remove on prod
 			var rez_bs_call_for_worker = scope[payload.method](payload.arg, this);
-
+			console.log('rez_bs_call_for_worker:', rez_bs_call_for_worker);
 			if (payload.cbid) {
 				if (rez_bs_call_for_worker && rez_bs_call_for_worker.constructor.name == 'Promise') {
 					rez_bs_call_for_worker.then(
 						function(aVal) {
-
+							console.log('Fullfilled - rez_bs_call_for_worker - ', aVal);
 							this.postMessage(payload.cbid, aVal);
 						}.bind(this),
 						genericReject.bind(null, 'rez_bs_call_for_worker', 0)
 					).catch(genericCatch.bind(null, 'rez_bs_call_for_worker', 0));
 				} else {
-
+					console.log('calling postMessage for callback with rez_bs_call_for_worker:', rez_bs_call_for_worker, 'this:', this);
 					this.postMessage(payload.cbid, rez_bs_call_for_worker);
 				}
 			}
@@ -1091,7 +1091,7 @@ function workerComm(aWorkerPath, onBeforeInit, onAfterInit, aWebWorker) {
 			this.callbackReceptacle[payload.cbid](payload.arg, this);
 			delete this.callbackReceptacle[payload.cbid];
 		} else {
-
+			console.error('bootstrap workerComm - invalid combination');
 			throw new Error('bootstrap workerComm - invalid combination');
 		}
 	}.bind(this);
