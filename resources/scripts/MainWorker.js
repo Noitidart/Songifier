@@ -152,7 +152,7 @@ function genericReject(aPromiseName, aPromiseToReject, aReason) {
 		name: aPromiseName,
 		aReason: aReason
 	};
-	console.error('Rejected - ' + aPromiseName + ' - ', rejObj);
+
 	if (aPromiseToReject) {
 		aPromiseToReject.reject(rejObj);
 	}
@@ -162,7 +162,7 @@ function genericCatch(aPromiseName, aPromiseToReject, aCaught) {
 		name: aPromiseName,
 		aCaught: aCaught
 	};
-	console.error('Caught - ' + aPromiseName + ' - ', rejObj);
+
 	if (aPromiseToReject) {
 		aPromiseToReject.reject(rejObj);
 	}
@@ -201,7 +201,7 @@ function formatStringFromName(aKey, aLocalizedPackageName, aReplacements) {
 
 		_cache_formatStringFromName_packages[packageName] = packageJson;
 
-		console.log('packageJson:', packageJson);
+
 	}
 
 	var cLocalizedStr = _cache_formatStringFromName_packages[packageName][aKey];
@@ -218,7 +218,7 @@ function formatStringFromName(aKey, aLocalizedPackageName, aReplacements) {
 }
 // rev1 - https://gist.github.com/Noitidart/ec1e6b9a593ec7e3efed
 function xhr(aUrlOrFileUri, aOptions={}) {
-	// console.error('in xhr!!! aUrlOrFileUri:', aUrlOrFileUri);
+
 
 	// all requests are sync - as this is in a worker
 	var aOptionsDefaults = {
@@ -244,14 +244,14 @@ function xhr(aUrlOrFileUri, aOptions={}) {
 	cRequest.responseType = aOptions.responseType;
 	cRequest.send(aOptions.data);
 
-	// console.log('response:', cRequest.response);
 
-	// console.error('done xhr!!!');
+
+
 	return cRequest;
 }
 
 function xhrAsync(aUrlOrFileUri, aOptions={}, aCallback) { // 052616
-	// console.error('in xhr!!! aUrlOrFileUri:', aUrlOrFileUri);
+
 
 	// all requests are sync - as this is in a worker
 	var aOptionsDefaults = {
@@ -338,9 +338,9 @@ function xhrAsync(aUrlOrFileUri, aOptions={}, aCallback) { // 052616
 	request.responseType = aOptions.responseType;
 	request.send(aOptions.data);
 
-	// console.log('response:', request.response);
 
-	// console.error('done xhr!!!');
+
+
 
 }
 
@@ -389,7 +389,7 @@ function workerComm() {
 	};
 	this.listener = function(e) {
 		var payload = e.data;
-		console.log('worker workerComm - incoming, payload:', payload); //, 'e:', e);
+
 
 		if (payload.method) {
 			if (!firstMethodCalled) {
@@ -398,21 +398,21 @@ function workerComm() {
 					this.postMessage('triggerOnAfterInit', scope.init(undefined, this));
 				}
 			}
-			console.log('scope:', scope);
-			if (!(payload.method in scope)) { console.error('method of "' + payload.method + '" not in scope'); throw new Error('method of "' + payload.method + '" not in scope') } // dev line remove on prod
+
+
 			var rez_worker_call_for_bs = scope[payload.method](payload.arg, this);
-			console.log('rez_worker_call_for_bs:', rez_worker_call_for_bs);
+
 			if (payload.cbid) {
 				if (rez_worker_call_for_bs && rez_worker_call_for_bs.constructor.name == 'Promise') {
 					rez_worker_call_for_bs.then(
 						function(aVal) {
-							console.log('Fullfilled - rez_worker_call_for_bs - ', aVal);
+
 							this.postMessage(payload.cbid, aVal);
 						}.bind(this),
 						genericReject.bind(null, 'rez_worker_call_for_bs', 0)
 					).catch(genericCatch.bind(null, 'rez_worker_call_for_bs', 0));
 				} else {
-					console.log('calling postMessage for callback with rez_worker_call_for_bs:', rez_worker_call_for_bs, 'this:', this);
+
 					this.postMessage(payload.cbid, rez_worker_call_for_bs);
 				}
 			}
@@ -425,7 +425,7 @@ function workerComm() {
 			this.callbackReceptacle[payload.cbid](payload.arg, this);
 			delete this.callbackReceptacle[payload.cbid];
 		} else {
-			console.error('worker workerComm - invalid combination');
+
 			throw new Error('worker workerComm - invalid combination');
 		}
 	}.bind(this);
